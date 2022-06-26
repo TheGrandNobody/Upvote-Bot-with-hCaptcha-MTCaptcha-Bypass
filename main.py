@@ -10,10 +10,13 @@ PROJECT_URL = 'https://coinsniper.net/coin/27477' # The Coinsniper URL of the pr
 lock = threading.Lock() # A lock used to make sure each bot does not compete to write into the csv files
 
 if __name__ == "__main__":
+    # Check whether there is already a '.csv' file to append accounts to
     if not exists('coinsniper_accounts.csv'):
+        # Otherwise create one and add a header to it
         with open('coinsniper_accounts.csv', 'w') as file:
             writer = csv.writer(file, delimiter=',')
             header = writer.writerow(['Email', 'Password'])
+    # Create a list of bots
     bots = [Upvote(VOTES_PER_BOT, PROJECT_URL) for _ in range(NUMBER_OF_BOTS)]
     # Run the bots in parallel
     threads = []
