@@ -28,7 +28,7 @@ class Upvote():
         self.solver.set_verbose(1)
         self.solver.set_key("be72f71c3deac04756eda6c5b263c3a8")
         # Fetch a list of SOCKS5 proxies
-        self.proxies = get_proxies(3000)
+        self.proxies = get_proxies(1000)
         # Initialize other variables
         self.name = None
         self.password = None
