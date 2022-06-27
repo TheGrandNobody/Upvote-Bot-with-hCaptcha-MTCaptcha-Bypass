@@ -6,6 +6,9 @@ import pandas as pd
 def get_proxies(ping: int) -> List[str]:
     """ Fetches proxies from websites to produce a list of high anonimity, SOCKS5 proxies with a maximum given ping
 
+    Args:
+        ping (int): A ping threshold for the maximum ping you want your proxies to have.
+
     Returns:
         List[str]: A list of high anonimity, SOCKS5 proxies with a maximum specified ping.
     """
