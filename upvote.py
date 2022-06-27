@@ -1,13 +1,15 @@
-from time import sleep
 import csv
 import random
 import string
-from proxy import get_proxies
 import requests as req
 import undetected_chromedriver as uc
+from time import sleep
+from proxy import get_proxies
 from mtcaptcha import mtsolver
+from anticaptchaofficial import hcaptchaproxyless
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support.expected_conditions import text_to_be_present_in_element_attribute
 
 
 class Upvote():
@@ -23,12 +25,21 @@ class Upvote():
             n (int): The number of times which the upvote bot is required to vote
             project_url (str): The Coinsniper url of the project to be upvoted
         """
-        # Initialize Anti-Captcha solver
-        self.solver = mtsolver()
-        self.solver.set_verbose(1)
-        self.solver.set_key("be72f71c3deac04756eda6c5b263c3a8")
+        # Initialize Anti-Captcha solvers
+        self.mt_solver = mtsolver()
+        self.mt_solver.set_verbose(1)
+        self.mt_solver.set_key("be72f71c3deac04756eda6c5b263c3a8")
+        self.h_solver = hcaptchaproxyless.hCaptchaProxyless()
+        self.h_solver.set_verbose(1)
+        self.h_solver.set_key("be72f71c3deac04756eda6c5b263c3a8")
+        self.h_solver.set_website_url(project_url)
+        self.h_solver.set_website_key("65cdfa64-8ed6-49f2-a8ba-f4fc8501e917")
+        self.h_solver.set_is_invisible(0)
         # Fetch a list of SOCKS5 proxies
-        self.proxies = get_proxies(1000)
+        self.proxies = []
+        with open('proxies.txt', 'r') as file:
+            for line in file:
+              self.proxies.append(line)
         # Initialize other variables
         self.name = None
         self.password = None
@@ -51,6 +62,7 @@ class Upvote():
         options.add_argument('--proxy-server=socks5://{}'.format(self.proxies[i]))
         # Initialize Selenium Web Driver
         self.driver = uc.Chrome(options)
+        self.h_solver.set_user_agent(self.driver.execute_script("return navigator.userAgent"))
 
     def restart(self) -> None:
         """ Closes the current Selenium web driver and reopens a new one with a new SOCKS5 proxy.
@@ -182,6 +194,7 @@ class Upvote():
                     'Error while fetching GET response to get emails, with status code: ' + str(response.status_code))
         except Exception as error:
             print(error)
+        print('done', verification_link)
         return verification_link
 
     def register_and_verify(self) -> None:
@@ -189,11 +202,10 @@ class Upvote():
         """
         # 1 | Open https://coinsniper.net/register |
         self.driver.get('https://coinsniper.net/register')
-        sleep(5)
         # 2 | Try closing the ad
         try:
-            WebDriverWait(self.driver, 10).until(lambda d: d.find_element(
-                By.CSS_SELECTOR, ".fa-times-circle").click())
+            WebDriverWait(self.driver, 10).until(text_to_be_present_in_element_attribute((By.CLASS_NAME, "premium-banner"), "class", "is-open"))
+            self.driver.find_element(By.CSS_SELECTOR, ".fa-times-circle").click()
         except:
             pass
         # 3 | Try closing the disclaimer
@@ -208,8 +220,7 @@ class Upvote():
         # 6 | Click on the password field
         self.driver.find_element(By.NAME, "password").click()
         # 7 | Type a random password
-        self.driver.find_element(By.NAME, "password").send_keys(
-            self.random_password())
+        self.driver.find_element(By.NAME, "password").send_keys(self.random_password())
         # 8 | Click on the password confirmation field
         self.driver.find_element(By.NAME, "password_confirmation").click()
         # 9 | Re-enter the previously generated password
@@ -221,25 +232,40 @@ class Upvote():
         self.driver.find_element(
             By.NAME, "email").send_keys(self.random_email())
         # 12 | Switch to the MTCaptcha frame
-        self.driver.switch_to.frame(
-            self.driver.find_element(By.ID, "mtcaptcha-iframe-1"))
-        # 13 | Save the captcha's image url
+        self.driver.switch_to.frame(self.driver.find_element(By.ID, "mtcaptcha-iframe-1"))
+        # 13 | Keep trying to solve the captcha until successful
+        self.solve_mt_captcha()
+        # 14 | Switch back to the (default) website registration frame
+        self.driver.switch_to.default_content()
+        sleep(1)
+        # 15 | Click on "Register"
+        self.driver.find_element(By.CSS_SELECTOR, ".control > .button").click()
+        # 16 | Verify the newly created account
+        self.driver.get(self.fetch_verification_link())
+        sleep(1)
+
+    def solve_mt_captcha(self) -> None:
+        """ Attempts to solve an MTCaptcha continuously, until it is solved.
+        """
+        # 1 | Save the captcha's image url
         base64_captcha_image = self.driver.find_element(
             By.ID, "mtcap-image-nocss-1").get_attribute("src")
-        # 14 | Send the image to anti-captcha for solving
-        solution = self.solver.solve_and_return_solution(
-            base64_captcha_image[22:])
-        # 15 | Click on the MTCaptcha input field
+        # 2 | Send the image to anti-captcha for solving
+        solution = self.mt_solver.solve_and_return_solution(base64_captcha_image[22:])
+        # 3 | Click on the MTCaptcha input field
         self.driver.find_element(By.ID, "mtcap-inputtext-1").click()
-        # 16 | Enter the solved MTCaptcha key
-        self.driver.find_element(
-            By.ID, "mtcap-inputtext-1").send_keys(solution)
-        # 17 | Switch back to the (default) website registration frame
-        self.driver.switch_to.default_content()
-        # 18 | Click on "Register"
-        self.driver.find_element(By.CSS_SELECTOR, ".control > .button").click()
-        # 19 | Verify the newly created account
-        self.driver.get(self.fetch_verification_link())
+        # 4 | Enter the solved MTCaptcha key
+        self.driver.find_element(By.ID, "mtcap-inputtext-1").send_keys(solution)
+        # 5a | Wait max 5s for the captcha to verify
+        try:
+            WebDriverWait(self.driver, 10).until(text_to_be_present_in_element_attribute((By.ID, "desc4InputText-1"), "innerHTML", "captcha verified successfully."))
+        except:
+        # 5b | Otherwise attempt to solve the captcha again
+            # If connection timed out, reset the captcha
+            if "block" in self.driver.find_element(By.ID, "mtcap-error-card-1").get_property("display"):
+                self.driver.find_element(By.ID, "mtcap-alert-btn-1").click()
+                sleep(1)
+            self.solve_mt_captcha()
 
     def vote(self) -> None:
         """ Upvotes the given project on Coinsniper and adds it to the account's watchlist.
@@ -248,8 +274,8 @@ class Upvote():
         self.driver.get(self.project_url)
         # 2 | Try closing the ad
         try:
-            self.driver.find_element(
-                By.CSS_SELECTOR, ".fa-times-circle").click()
+            WebDriverWait(self.driver, 10).until(text_to_be_present_in_element_attribute((By.CLASS_NAME, "premium-banner"), "class", "is-open"))
+            self.driver.find_element(By.CSS_SELECTOR, ".fa-times-circle").click()
         except:
             pass
         # 3 | Try closing the disclaimer
@@ -263,15 +289,13 @@ class Upvote():
         # 5 | Click on the "Vote For [Project]" button
         self.driver.find_element(
             By.CSS_SELECTOR, ".is-hidden-mobile > .voting > .button").click()
-        # 6 | Switch to the hCaptcha frame
-        self.driver.switch_to.frame(self.driver.find_element(
-            By.XPATH, '//*[@id="hcaptcha_submit"]/iframe'))
-        # 7 | Click on the hCaptcha checkbox
-        self.driver.find_element(By.ID, "checkbox").click()
-        # 8 | Switch back to the (default) voting frame
-        self.driver.switch_to.default_content()
-        # 9 | Click on the "Vote" button
-        self.driver.find_element(By.CSS_SELECTOR, ".is-success").click()
+        # 6 | Solve the captcha
+        solution = self.h_solver.solve_and_return_solution()
+        # 7 | Enter the hCaptcha response 
+        self.driver.execute_script("arguments[0].value = '{}'".format(solution), self.driver.find_element(By.NAME, 'h-captcha-response'))
+        self.driver.execute_script("arguments[0].value = '{}'".format(solution), self.driver.find_element(By.NAME, 'g-recaptcha-response'))
+        # 8 | Click on the hCaptcha checkbox
+        self.driver.find_element(By.ID, "hcaptcha_submit").submit()
 
     def save_credentials(self):
         """ Saves the email and password of the current newly created Coinsniper account to a '.csv' file.
