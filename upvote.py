@@ -47,10 +47,10 @@ class Upvote():
             i (int): The index of the i'th proxy we want to use from the downloaded proxy list
         """
         # Use a SOCKS5 proxy
-        chrome_options = uc.ChromeOptions()
-        chrome_options.add_argument('--proxy-server=socks5://{}'.format(self.proxies[i]))
+        options = uc.ChromeOptions()
+        options.add_argument('--proxy-server=socks5://{}'.format(self.proxies[i]))
         # Initialize Selenium Web Driver
-        self.driver = uc.Chrome()
+        self.driver = uc.Chrome(options)
 
     def restart(self) -> None:
         """ Closes the current Selenium web driver and reopens a new one with a new SOCKS5 proxy.
