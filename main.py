@@ -21,7 +21,7 @@ if __name__ == "__main__":
     # Run the bots in parallel
     threads = []
     for bot in bots:
-      thread = threading.Thread(bot.activate)
+      thread = threading.Thread(target=bot.activate)
       threads.append(thread)
       thread.start()
     # Wait for the threads to complete their process

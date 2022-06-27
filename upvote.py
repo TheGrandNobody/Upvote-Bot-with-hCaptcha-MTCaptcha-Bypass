@@ -1,11 +1,13 @@
+from time import sleep
 import csv
 import random
 import string
-import json
+from proxy import get_proxies
 import requests as req
 import undetected_chromedriver as uc
 from mtcaptcha import mtsolver
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
 
 
 class Upvote():
@@ -21,14 +23,12 @@ class Upvote():
             n (int): The number of times which the upvote bot is required to vote
             project_url (str): The Coinsniper url of the project to be upvoted
         """
-        # Download a list of free SOCKS5 proxies
-        response = req.get(
-            'https://api.proxyscrape.com/v2/?request=getproxies&protocol=socks5&timeout=10000&country=all', allow_redirects=True)
-        self.proxies = response.text.splitlines()
         # Initialize Anti-Captcha solver
         self.solver = mtsolver()
         self.solver.set_verbose(1)
         self.solver.set_key("be72f71c3deac04756eda6c5b263c3a8")
+        # Fetch a list of SOCKS5 proxies
+        self.proxies = get_proxies(3000)
         # Initialize other variables
         self.name = None
         self.password = None
@@ -48,8 +48,7 @@ class Upvote():
         """
         # Use a SOCKS5 proxy
         chrome_options = uc.ChromeOptions()
-        chrome_options.add_argument(
-            '--proxy-server=socks5://{}'.format(self.proxies[i].partition(':')[0]))
+        chrome_options.add_argument('--proxy-server=socks5://{}'.format(self.proxies[i]))
         # Initialize Selenium Web Driver
         self.driver = uc.Chrome()
 
@@ -118,7 +117,7 @@ class Upvote():
             response = req.get('https://api.mail.tm/domains?page=1')
             if self.check_status_code(response):
                 # Create an email address using the acquired domain
-                content = json.loads(response.text)
+                content = response.json()
                 self.email = self.name+'@'+content['hydra:member'][0]['domain']
                 # Create a temporary mail account using the newly created email
                 response = req.post(
@@ -129,7 +128,7 @@ class Upvote():
                         'https://api.mail.tm/token', json={'address': self.email, 'password': self.password})
                     if self.check_status_code(response):
                         # Save the authentication token
-                        content = json.loads(response.text)
+                        content = response.json()
                         self.token = 'Bearer ' + content['token']
                     else:
                         raise Exception(
@@ -160,12 +159,12 @@ class Upvote():
                                headers={'Authorization': self.token})
             if self.check_status_code(response):
                 # Check whether any emails have been received
-                content = json.loads(response.text)
+                content = response.json()
                 # Keep fetching the temporary email account's inbox until we receive the verification email
                 while content['hydra:totalItems'] == 0:
                     response = req.get(
                         'https://api.mail.tm/messages?page=1', headers={'Authorization': self.token})
-                    content = json.loads(response.text)
+                    content = response.json()
                 # Save the ID of the verification email once it has been received
                 id = content['hydra:member'][0]['@id']
                 # Try to fetch the contents of the verification email
@@ -173,7 +172,7 @@ class Upvote():
                                    id, headers={'Authorization': self.token})
                 if self.check_status_code(response):
                     # Search the email's contents for the verification link
-                    content = json.loads(response.text)
+                    content = response.json()
                     verification_link = content['text'].splitlines()[6][22:]
                 else:
                     raise Exception(
@@ -190,10 +189,11 @@ class Upvote():
         """
         # 1 | Open https://coinsniper.net/register |
         self.driver.get('https://coinsniper.net/register')
+        sleep(5)
         # 2 | Try closing the ad
         try:
-            self.driver.find_element(
-                By.CSS_SELECTOR, ".fa-times-circle").click()
+            WebDriverWait(self.driver, 10).until(lambda d: d.find_element(
+                By.CSS_SELECTOR, ".fa-times-circle").click())
         except:
             pass
         # 3 | Try closing the disclaimer
