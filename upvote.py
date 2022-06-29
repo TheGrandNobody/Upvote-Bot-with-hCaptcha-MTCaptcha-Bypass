@@ -1,10 +1,10 @@
 import csv
 import random
 import string
+import proxy
 import requests as req
 import undetected_chromedriver as uc
 from time import sleep
-from proxy import get_proxies
 from mtcaptcha import mtsolver
 from anticaptchaofficial import hcaptchaproxyless
 from selenium.webdriver.common.by import By
@@ -18,28 +18,27 @@ class Upvote():
     and upvoting a given token, 'n' amount of times. Saves all created accounts to a ".csv"
     """
 
-    def __init__(self, n: int, project_url: str) -> None:
+    def __init__(self, n: int, project_url: str, captcha_key : str, proxy_key : str) -> None:
         """ Initializes an Upvote Bot.
 
         Args:
             n (int): The number of times which the upvote bot is required to vote
             project_url (str): The Coinsniper url of the project to be upvoted
+            captcha_key (str): The API key for Anti-Captcha services
+            proxy_key (str): The API key for the Webshare Proxy service
         """
         # Initialize Anti-Captcha solvers
         self.mt_solver = mtsolver()
         self.mt_solver.set_verbose(1)
-        self.mt_solver.set_key("be72f71c3deac04756eda6c5b263c3a8")
+        self.mt_solver.set_key(captcha_key)
         self.h_solver = hcaptchaproxyless.hCaptchaProxyless()
         self.h_solver.set_verbose(1)
-        self.h_solver.set_key("be72f71c3deac04756eda6c5b263c3a8")
+        self.h_solver.set_key(captcha_key)
         self.h_solver.set_website_url(project_url)
         self.h_solver.set_website_key("65cdfa64-8ed6-49f2-a8ba-f4fc8501e917")
         self.h_solver.set_is_invisible(0)
         # Fetch a list of SOCKS5 proxies
-        self.proxies = []
-        with open('proxies.txt', 'r') as file:
-            for line in file:
-              self.proxies.append(line)
+        self.proxies = proxy.get_proxies(proxy_key)
         # Initialize other variables
         self.name = None
         self.password = None
@@ -57,9 +56,9 @@ class Upvote():
         Args:
             i (int): The index of the i'th proxy we want to use from the downloaded proxy list
         """
-        # Use a SOCKS5 proxy
         options = uc.ChromeOptions()
-        options.add_argument('--proxy-server=socks5://{}'.format(self.proxies[i]))
+        # Use a SOCKS5 proxy
+        options.add_argument('--proxy-server=socks5://%s' % self.proxies[i])
         # Initialize Selenium Web Driver
         self.driver = uc.Chrome(options)
         self.h_solver.set_user_agent(self.driver.execute_script("return navigator.userAgent"))
@@ -173,7 +172,9 @@ class Upvote():
                 # Check whether any emails have been received
                 content = response.json()
                 # Keep fetching the temporary email account's inbox until we receive the verification email
+                print(content)
                 while content['hydra:totalItems'] == 0:
+                    sleep(1)
                     response = req.get(
                         'https://api.mail.tm/messages?page=1', headers={'Authorization': self.token})
                     content = response.json()
@@ -194,7 +195,7 @@ class Upvote():
                     'Error while fetching GET response to get emails, with status code: ' + str(response.status_code))
         except Exception as error:
             print(error)
-        print('done', verification_link)
+        print(verification_link)
         return verification_link
 
     def register_and_verify(self) -> None:
@@ -242,7 +243,8 @@ class Upvote():
         self.driver.find_element(By.CSS_SELECTOR, ".control > .button").click()
         # 16 | Verify the newly created account
         self.driver.get(self.fetch_verification_link())
-        sleep(1)
+        print("sleeping")
+        sleep(10)
 
     def solve_mt_captcha(self) -> None:
         """ Attempts to solve an MTCaptcha continuously, until it is solved.
@@ -258,7 +260,7 @@ class Upvote():
         self.driver.find_element(By.ID, "mtcap-inputtext-1").send_keys(solution)
         # 5a | Wait max 5s for the captcha to verify
         try:
-            WebDriverWait(self.driver, 10).until(text_to_be_present_in_element_attribute((By.ID, "desc4InputText-1"), "innerHTML", "captcha verified successfully."))
+            WebDriverWait(self.driver, 5).until(text_to_be_present_in_element_attribute((By.ID, "desc4InputText-1"), "innerHTML", "captcha verified successfully."))
         except:
         # 5b | Otherwise attempt to solve the captcha again
             # If connection timed out, reset the captcha
@@ -283,9 +285,10 @@ class Upvote():
             self.driver.find_element(By.CSS_SELECTOR, ".full-width").click()
         except:
             pass
-        # 4 | Add the project to your watchlist
-        self.driver.find_element(
-            By.CSS_SELECTOR, ".wishlist-add > span").click()
+        # 4 | 33% Chance to add the project to your watchlist
+        if (not random.randint(0, 2)):
+            self.driver.find_element(
+                By.CSS_SELECTOR, ".wishlist-add > span").click()
         # 5 | Click on the "Vote For [Project]" button
         self.driver.find_element(
             By.CSS_SELECTOR, ".is-hidden-mobile > .voting > .button").click()
@@ -296,16 +299,14 @@ class Upvote():
         self.driver.execute_script("arguments[0].value = '{}'".format(solution), self.driver.find_element(By.NAME, 'g-recaptcha-response'))
         # 8 | Click on the hCaptcha checkbox
         self.driver.find_element(By.ID, "hcaptcha_submit").submit()
+        sleep(1)
 
     def save_credentials(self):
         """ Saves the email and password of the current newly created Coinsniper account to a '.csv' file.
         """
-        global lock
-        lock.acquire()
         with open('coinsniper_accounts.csv', 'a') as file:
             writer = csv.writer(file, delimiter=',')
             writer.writerow([self.email, self.password])
-        lock.release()
 
     def activate(self) -> None:
         """ Activates the bot's upvoting procedure.

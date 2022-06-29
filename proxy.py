@@ -1,22 +1,30 @@
 from typing import List
 import requests as req
-import pandas as pd
 
 
-def get_proxies(ping: int) -> List[str]:
-    """ Fetches proxies from websites to produce a list of high anonimity, SOCKS5 proxies with a maximum given ping
+def get_proxies(proxy_key: str) -> List[str]:
+    """ Fetches a proxy list from https://proxy.webshare.io/ 
+    and ensures that the IP of this computer is authorized to use them.
 
     Args:
-        ping (int): A ping threshold for the maximum ping you want your proxies to have.
+        proxy_key (str): The API key for the Webshares Proxy service
 
     Returns:
-        List[str]: A list of high anonimity, SOCKS5 proxies with a maximum specified ping.
+        List[str]: A list of high anonimity, high bandwidth SOCKS5 proxies
     """
-    proxies = []
-    res = req.get('https://hidemy.name/en/proxy-list/?maxtime={}&type=5&anon=4#list'.format(str(ping)),
-                  headers={'User-Agent': 'Mozilla/5.0'})
-    df = pd.read_html(res.content)[0]
-    for _, row in df.iterrows():
-        proxies.append('{}:{}'.format(row['IP address'], row['Port']))
+    # Obtain current IP address
+    current_ip = req.get('https://api.ipify.org/?format=json').json()['ip']
+    # Obtain current authorized IP address
+    headers = {'Authorization': 'Token %s' % proxy_key}
+    config = req.get(
+        'https://proxy.webshare.io/api/proxy/config/', headers=headers)
+    if config.json()['authorized_ips'][0] != current_ip:
+        req.post("https://proxy.webshare.io/api/proxy/config/",
+                 json={"authorized_ips": [current_ip]}, headers=headers)
+    # Fetch all the proxies
+    proxy_list = req.get(
+        'https://proxy.webshare.io/api/proxy/list', headers=headers).json()['results']
+    proxies = ['%s:%s' % (p['proxy_address'], p['ports']['socks5'])
+               for p in proxy_list]
 
     return proxies
