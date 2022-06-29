@@ -1,0 +1,4 @@
+anticaptchaofficial==1.0.43
+requests==2.27.1
+selenium==4.3.0
+undetected_chromedriver==3.1.5.post4
