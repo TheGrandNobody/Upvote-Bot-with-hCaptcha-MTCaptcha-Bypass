@@ -46,9 +46,9 @@ class Upvote():
         self.token = None
         self.project_url = project_url
         self.votes = n
-        self.proxy = 8
+        self.proxy = 0
         # Initialize an Undetected Chrome driver with a SOCKS5 proxy
-        self.setup(8)
+        self.setup(0)
 
     def __del__(self):
         self.driver.quit()
