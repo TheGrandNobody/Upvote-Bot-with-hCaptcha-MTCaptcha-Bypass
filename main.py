@@ -9,9 +9,9 @@ PROJECT_URL = 'https://coinsniper.net/coin/27477' # The Coinsniper URL of the pr
 CAPTCHA_KEY = 'be72f71c3deac04756eda6c5b263c3a8' # The API key for your Anti-Captcha account
 PROXY_KEY = 'db95f3f33e86ef6274fca26a09c975809b56c801' # The API key for your Proxy Webshare account
 
-def initiate(bot : Upvote):
+def initiate(bot : Upvote, proxy_idx : int):
     # Run the bot
-    bot.activate()
+    bot.activate(proxy_idx)
 
 def main() -> None:
     # Check whether there is already a '.csv' file to append accounts to
@@ -21,7 +21,7 @@ def main() -> None:
             writer = csv.writer(file, delimiter=',')
             writer.writerow(['Email', 'Password'])
     with ThreadPoolExecutor(max_workers=NUMBER_OF_BOTS) as executor:
-        executor.map(initiate, [Upvote(VOTES_PER_BOT, PROJECT_URL, CAPTCHA_KEY, PROXY_KEY) for _ in range(NUMBER_OF_BOTS)])
+        executor.map(initiate, [Upvote(VOTES_PER_BOT, PROJECT_URL, CAPTCHA_KEY, PROXY_KEY) for _ in range(NUMBER_OF_BOTS)], [i * VOTES_PER_BOT for i in range(NUMBER_OF_BOTS) ])
 
 if __name__ == "__main__":
     main()

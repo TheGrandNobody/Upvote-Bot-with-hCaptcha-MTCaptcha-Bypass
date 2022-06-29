@@ -47,8 +47,6 @@ class Upvote():
         self.project_url = project_url
         self.votes = n
         self.proxy = 0
-        # Initialize an Undetected Chrome driver with a SOCKS5 proxy
-        self.setup(0)
 
     def __del__(self):
         self.driver.quit()
@@ -385,9 +383,15 @@ class Upvote():
             writer = csv.writer(file, delimiter=',')
             writer.writerow([self.email, self.password])
 
-    def activate(self) -> None:
+    def activate(self, idx : int) -> None:
         """ Activates the bot's upvoting procedure.
+
+        Args:
+            idx (int): The index of the first proxy this bot will use
         """
+        # Initialize an Undetected Chrome driver with a SOCKS5 proxy
+        self.setup(idx)
+        self.proxy = idx
         for i in range(self.votes):
             # 1 | Register and verify a Coinsniper account
             self.register_and_verify()
