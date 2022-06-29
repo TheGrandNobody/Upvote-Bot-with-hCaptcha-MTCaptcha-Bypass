@@ -5,7 +5,7 @@ from upvote import Upvote
 VOTES_PER_BOT = 1  # The number of votes/accounts created per bot
 PROJECT_URL = 'https://coinsniper.net/coin/27477' # The Coinsniper URL of the project you want to upvote
 CAPTCHA_KEY = 'be72f71c3deac04756eda6c5b263c3a8' # The API key for your Anti-Captcha account
-PROXY_KEY = '' # The API key for your Proxy Webshare account
+PROXY_KEY = 'db95f3f33e86ef6274fca26a09c975809b56c801' # The API key for your Proxy Webshare account
 
 def main() -> None:
     # Check whether there is already a '.csv' file to append accounts to

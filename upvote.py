@@ -172,12 +172,13 @@ class Upvote():
                 # Check whether any emails have been received
                 content = response.json()
                 # Keep fetching the temporary email account's inbox until we receive the verification email
-                print(content)
                 while content['hydra:totalItems'] == 0:
-                    sleep(1)
+                    print('Waiting for verification email. Please be patient')
+                    sleep(3)
                     response = req.get(
                         'https://api.mail.tm/messages?page=1', headers={'Authorization': self.token})
                     content = response.json()
+                print('Verification email arrived')
                 # Save the ID of the verification email once it has been received
                 id = content['hydra:member'][0]['@id']
                 # Try to fetch the contents of the verification email
@@ -195,12 +196,13 @@ class Upvote():
                     'Error while fetching GET response to get emails, with status code: ' + str(response.status_code))
         except Exception as error:
             print(error)
-        print(verification_link)
+        print("Obtained a verification link")
         return verification_link
 
     def register_and_verify(self) -> None:
         """ Creates an account on Coinsniper and automatically verifies it.
         """
+        print('Creating an account...')
         # 1 | Open https://coinsniper.net/register |
         self.driver.get('https://coinsniper.net/register')
         # 2 | Try closing the ad
@@ -233,6 +235,7 @@ class Upvote():
         self.driver.find_element(
             By.NAME, "email").send_keys(self.random_email())
         # 12 | Switch to the MTCaptcha frame
+        print('Attempting to solve MTCaptcha...')
         self.driver.switch_to.frame(self.driver.find_element(By.ID, "mtcaptcha-iframe-1"))
         # 13 | Keep trying to solve the captcha until successful
         self.solve_mt_captcha()
@@ -241,10 +244,10 @@ class Upvote():
         sleep(1)
         # 15 | Click on "Register"
         self.driver.find_element(By.CSS_SELECTOR, ".control > .button").click()
+        print('Account created, beginning verification process...')
         # 16 | Verify the newly created account
         self.driver.get(self.fetch_verification_link())
-        print("sleeping")
-        sleep(10)
+        sleep(3)
 
     def solve_mt_captcha(self) -> None:
         """ Attempts to solve an MTCaptcha continuously, until it is solved.
@@ -272,6 +275,7 @@ class Upvote():
     def vote(self) -> None:
         """ Upvotes the given project on Coinsniper and adds it to the account's watchlist.
         """
+        print('Beginning voting procedure...')
         # 1 | Open the project on Coinsniper
         self.driver.get(self.project_url)
         # 2 | Try closing the ad
@@ -287,12 +291,16 @@ class Upvote():
             pass
         # 4 | 33% Chance to add the project to your watchlist
         if (not random.randint(0, 2)):
+            print("Adding project to this account's watchlist.")
             self.driver.find_element(
                 By.CSS_SELECTOR, ".wishlist-add > span").click()
+        else:
+            print('Account will not add this project to the watchlist.')
         # 5 | Click on the "Vote For [Project]" button
         self.driver.find_element(
             By.CSS_SELECTOR, ".is-hidden-mobile > .voting > .button").click()
         # 6 | Solve the captcha
+        print('Attempting to solve hCaptcha challenge...')
         solution = self.h_solver.solve_and_return_solution()
         # 7 | Enter the hCaptcha response 
         self.driver.execute_script("arguments[0].value = '{}'".format(solution), self.driver.find_element(By.NAME, 'h-captcha-response'))
@@ -316,6 +324,7 @@ class Upvote():
             self.register_and_verify()
             # 2 | Upvote the given project and adds it to the new account's watchlist
             self.vote()
+            print('Voted. %d votes left' % (self.votes - i))
             # 3 | Save the account's credentials to a '.csv' file
             self.save_credentials()
             # 4 | Repeat 1-3 for the number of specified times
