@@ -263,13 +263,13 @@ class Upvote():
         """ Attempts to solve an MTCaptcha continuously, until it is solved.
         """
         # 1 | Save the captcha's image url
+        base64_captcha_image = self.driver.find_element(
+            By.ID, "mtcap-image-nocss-1").get_attribute("src")
+        # 2 | Send the image to anti-captcha for solving
         try:
-            base64_captcha_image = self.driver.find_element(
-                By.ID, "mtcap-image-nocss-1").get_attribute("src")
+            solution = self.mt_solver.solve_and_return_solution(base64_captcha_image[22:])
         except:
             pass
-        # 2 | Send the image to anti-captcha for solving
-        solution = self.mt_solver.solve_and_return_solution(base64_captcha_image[22:])
         # 3 | Enter the solved MTCaptcha key
         try:
             self.driver.find_element(By.ID, "mtcap-inputtext-1").send_keys(solution)
