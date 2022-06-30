@@ -3,7 +3,7 @@ import random
 import string
 import proxy
 import requests as req
-import undetected_chromedriver as uc
+import seleniumwire.undetected_chromedriver as uc
 from time import sleep
 from mtcaptcha import mtsolver
 from anticaptchaofficial import hcaptchaproxyless
@@ -18,7 +18,7 @@ class Upvote():
     and upvoting a given token, 'n' amount of times. Saves all created accounts to a ".csv"
     """
 
-    def __init__(self, n: int, project_url: str, captcha_key : str, proxy_key : str) -> None:
+    def __init__(self, n: int, project_url: str, captcha_key : str, proxy_key : str, usr : str, pwd : str) -> None:
         """ Initializes an Upvote Bot.
 
         Args:
@@ -40,6 +40,8 @@ class Upvote():
         # Fetch a list of SOCKS5 proxies
         self.proxies = proxy.get_proxies(proxy_key)
         # Initialize other variables
+        self.usr = usr
+        self.pwd = pwd
         self.name = None
         self.password = None
         self.email = None
@@ -57,11 +59,21 @@ class Upvote():
         Args:
             i (int): The index of the i'th proxy we want to use from the downloaded proxy list
         """
-        options = uc.ChromeOptions()
+        chrome_options = uc.ChromeOptions()
+        options = {
+          'proxy': {
+            'http': 'socks5://%s:%s@%s' % (self.usr, self.pwd, self.proxies[i]),
+            'https': 'socks5://%s:%s@%s' % (self.usr, self.pwd, self.proxies[i]),
+            'no_proxy': 'localhost,127.0.0.1'
+          }
+        }
         # Use a SOCKS5 proxy
-        options.add_argument('--proxy-server=socks5://%s' % self.proxies[i])
+        self.h_solver.set_proxy_address(self.proxies[i].partition(':')[0])
+        self.h_solver.set_proxy_port(self.proxies[i].partition(':')[2])
+        self.h_solver.set_proxy_login(self.usr)
+        self.h_solver.set_proxy_password(self.pwd)
         # Initialize Selenium Web Driver
-        self.driver = uc.Chrome(options)
+        self.driver = uc.Chrome(chrome_options=chrome_options, seleniumwire_options=options)
         self.h_solver.set_user_agent(self.driver.execute_script("return navigator.userAgent"))
 
     def restart(self) -> None:
